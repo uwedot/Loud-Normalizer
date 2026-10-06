@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Loudness normalizer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎧</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#0e1211;--panel:#161b19;--line:#283029;--text:#ece6da;--muted:#8d968f;--amber:#e0a458;--teal:#52d1b2;--r:.7rem;--rl:1rem;--h:2.75rem;--ring:0 0 0 3px rgba(224,164,88,.3);--tint:rgba(224,164,88,.1);--tint-line:rgba(224,164,88,.28);color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*:focus{outline:none}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 "Inter",system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:66rem;margin:0 auto;padding:max(1.5rem,env(safe-area-inset-top)) max(1rem,env(safe-area-inset-right)) max(4rem,env(safe-area-inset-bottom)) max(1rem,env(safe-area-inset-left))}
+h1,h2,#gv{font-weight:600;letter-spacing:-.02em}
+p{margin:0}
+button,input{font:inherit;color:inherit}
+
+/* icons: Lucide, inlined as symbols */
+.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ic{display:grid;place-items:center;flex:none;width:2.75rem;height:2.75rem;border-radius:var(--r);background:var(--tint);border:1px solid var(--tint-line);color:var(--amber)}
+.ic .i{width:22px;height:22px}
+.ic.lg{width:3.25rem;height:3.25rem;border-radius:50%}
+.ic.lg .i{width:26px;height:26px}
+.lab{display:inline-flex;align-items:center;gap:.5rem;min-width:0}
+.lab .i{width:16px;height:16px;color:var(--muted)}
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+
+/* page header */
+header{display:flex;align-items:center;gap:.85rem;margin-bottom:1.5rem}
+header .ic{width:2.75rem;height:2.75rem}
+h1{font-size:1.5rem;line-height:1.2;margin:0}
+.sub{color:var(--muted);font-size:.925rem;margin-top:.2rem}
+
+/* layout: one column on phones, controls beside results on wide screens */
+.layout{display:grid;gap:1rem;align-items:start}
+.col,#out{display:grid;gap:1rem;min-width:0;align-content:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--rl);padding:1rem;min-width:0}
+h2{display:flex;align-items:center;gap:.5rem;font-size:1.05rem;line-height:1.3;margin:0 0 1rem}
+h2 .i{width:18px;height:18px;color:var(--amber)}
+
+/* controls share one height, radius, border and focus treatment */
+.tile,#drop,.btn,.toggle{border-radius:var(--r);border:1px solid var(--line);transition:border-color .15s,box-shadow .15s,background .15s}
+:is(input,button,a):focus-visible,#drop:focus-within{border-color:var(--amber);box-shadow:var(--ring)}
+
+.glabel{color:var(--muted);font-size:.85rem;margin:1.25rem 0 .5rem}
+.glabel:first-child{margin-top:0}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}
+.tile{display:flex;flex-direction:column;justify-content:center;gap:.15rem;text-align:left;background:var(--bg);padding:.65rem .75rem;min-height:3.5rem;cursor:pointer;min-width:0}
+.tile b{display:flex;align-items:flex-start;gap:.45rem;font-size:.925rem;line-height:1.25}
+.tile b .i{width:18px;height:1.25em;color:var(--muted);transition:color .15s}
+.tile small{color:var(--muted);font-size:.78rem;line-height:1.3}
+.tile:hover{border-color:var(--muted)}
+.tile:disabled:not([aria-pressed=true]){opacity:.5;cursor:not-allowed}
+.tile[aria-pressed=true]{border-color:var(--amber);background:var(--tint)}
+.tile[aria-pressed=true] b,.tile[aria-pressed=true] b .i{color:var(--amber)}
+#custom{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:.75rem 1rem;margin-top:1rem;padding:.85rem;background:var(--bg);border:1px solid var(--line);border-radius:var(--r)}
+#custom label{color:var(--muted);font-size:.85rem}
+#custom input{display:block;width:100%;margin-top:.25rem}
+#custom .ends{display:flex;justify-content:space-between;color:var(--muted);font-size:.75rem;font-variant-numeric:tabular-nums}
+#custom output{float:right;color:var(--text);font-variant-numeric:tabular-nums}
+input[type=range]{appearance:none;height:1.5rem;padding:0;background:none;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:.35rem;border-radius:1rem;background:var(--line)}
+input[type=range]::-moz-range-track{height:.35rem;border-radius:1rem;background:var(--line)}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:1rem;height:1rem;margin-top:-.325rem;border:0;border-radius:50%;background:var(--amber)}
+input[type=range]::-moz-range-thumb{width:1rem;height:1rem;border:0;border-radius:50%;background:var(--amber)}
+input[type=range]:focus-visible{box-shadow:none}
+input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:var(--ring)}
+input[type=range]:focus-visible::-moz-range-thumb{box-shadow:var(--ring)}
+.note{display:flex;gap:.6rem;align-items:flex-start;margin-top:1rem;color:var(--muted);font-size:.875rem}
+.note .i{width:16px;height:1.5em;color:var(--amber)}
+
+#drop{position:relative;display:flex;flex-direction:column;align-items:center;gap:.25rem;border-style:dashed;border-width:2px;padding:1.5rem 1rem;text-align:center;cursor:pointer}
+#drop .ic{margin-bottom:.5rem}
+#drop b{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#drop small{color:var(--muted);font-size:.875rem}
+#drop:hover{border-color:var(--muted)}
+#drop.over{border-color:var(--amber);background:rgba(224,164,88,.08)}
+#drop input{position:absolute;opacity:0;width:1px;height:1px}
+#msg{display:flex;gap:.6rem;align-items:flex-start;color:var(--muted);font-size:.875rem;margin-top:.75rem}
+#msg .i{width:16px;height:1.5em}
+#msg:empty{display:none}
+#msg.err{color:#e58a6f}
+
+/* result: file, gain, tip */
+.file{display:flex;align-items:center;gap:.85rem;min-width:0}
+.file b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.75rem;color:var(--muted);font-size:.78rem}
+.chips span{display:inline-flex;align-items:center;gap:.3rem;padding:.1rem .5rem;border:1px solid var(--line);border-radius:1rem;background:var(--bg);white-space:nowrap}
+.chips .i{width:14px;height:14px}
+.gain{display:flex;align-items:center;gap:.9rem;margin-top:1rem;padding:.85rem;background:var(--bg);border:1px solid var(--line);border-radius:var(--r)}
+.gtxt{display:flex;align-items:baseline;gap:.15rem .75rem;flex-wrap:wrap;min-width:0}
+#gv{font-size:2.25rem;line-height:1.1;color:var(--amber)}
+#lim{color:var(--muted);font-size:.875rem}
+.tipbox{display:flex;gap:.6rem;align-items:flex-start;margin-top:1rem;padding:.7rem .85rem;font-size:.875rem;color:var(--amber);background:var(--tint);border:1px solid var(--tint-line);border-radius:var(--r)}
+.tipbox .i{width:18px;height:1.5em}
+.tipbox:has(#tip:empty),#tip:empty{display:none}
+
+/* measurements */
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th{color:var(--muted);font-weight:400;font-size:.85rem;text-align:right;padding-bottom:.5rem}
+td{text-align:right;padding:.7rem 0;border-top:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left;color:var(--muted)}
+td.r{color:var(--teal);font-weight:600}
+td.na{color:var(--muted)}
+th:not(:first-child),td:not(:first-child){padding-left:.75rem;padding-right:.75rem}
+th:last-child,td:last-child{padding-right:0}
+th:nth-child(n+3),td:nth-child(n+3){border-left:1px solid var(--line)}
+
+/* output */
+.toggle{display:flex;justify-content:space-between;align-items:center;gap:1rem;min-height:3.25rem;padding:.4rem .85rem;margin-bottom:1rem;background:var(--bg);cursor:pointer}
+input[type=checkbox]{appearance:none;flex:none;position:relative;width:2.6rem;height:1.5rem;margin:0;border-radius:1rem;background:var(--line);border:1px solid var(--line);cursor:pointer;transition:background .15s,border-color .15s,box-shadow .15s}
+input[type=checkbox]::after{content:"";position:absolute;top:2px;left:2px;width:1.1rem;height:1.1rem;border-radius:50%;background:var(--text);transition:transform .15s,background .15s}
+input[type=checkbox]:checked{background:var(--amber);border-color:var(--amber)}
+input[type=checkbox]:checked::after{transform:translateX(1.1rem);background:#1a1409}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;min-height:var(--h);padding:.5rem 1rem;font-weight:600;line-height:1.25;text-align:center;cursor:pointer;text-decoration:none;background:var(--amber);border-color:var(--amber);color:#1a1409}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+input:disabled{opacity:.5;cursor:not-allowed}
+.btn.alt{background:transparent;color:var(--amber);margin-top:.5rem}
+.btn.alt:hover{background:rgba(224,164,88,.1);filter:none}
+
+#plot{width:100%;height:9.5rem;display:block;margin-bottom:.75rem;border-radius:var(--r);background:var(--bg);border:1px solid var(--line)}
+.key{display:flex;gap:.4rem 1rem;flex-wrap:wrap;color:var(--muted);font-size:.8rem}
+.key i{display:inline-block;width:.8rem;height:.2rem;margin-right:.4rem;vertical-align:middle;border-radius:1px}
+audio{width:100%;height:var(--h);margin-top:.75rem;color-scheme:dark}
+
+/* empty state, shown beside the controls until a track is loaded */
+.empty{display:none;flex-direction:column;align-items:center;gap:.4rem;text-align:center;padding:3rem 1.5rem;border-style:dashed}
+.empty .ic{margin-bottom:.4rem}
+.empty b{font-weight:600}
+.empty p{color:var(--muted);font-size:.9rem;max-width:26rem}
+[hidden]{display:none!important}
+
+/* roomier cards */
+@media (min-width:30rem){
+  .card{padding:1.25rem}
+  #gv{font-size:2.5rem}
+}
+/* tablets: the preset tiles fit four across */
+@media (min-width:40rem){
+  main{padding-left:max(1.5rem,env(safe-area-inset-left));padding-right:max(1.5rem,env(safe-area-inset-right))}
+  h1{font-size:1.9rem}
+  header{gap:1rem;margin-bottom:2rem}
+  header .ic{width:3.25rem;height:3.25rem}
+  header .ic .i{width:26px;height:26px}
+  .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+/* desktops and landscape tablets: controls on the left, results on the right */
+@media (min-width:56rem){
+  .layout{grid-template-columns:minmax(0,26rem) minmax(0,1fr);gap:1.25rem}
+  .col,#out{gap:1.25rem}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #plot{height:12rem}
+  #out[hidden]+.empty{display:flex}
+}
+/* phones: each measurement becomes its own block instead of a cramped four-column table */
+@media (max-width:34rem){
+  thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  tbody tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:.8rem 0;border-top:1px solid var(--line)}
+  tbody tr:first-child{border-top:0;padding-top:0}
+  tbody td{border:0!important;padding:0!important;text-align:left}
+  td:first-child{grid-column:1/-1;margin-bottom:.4rem}
+  td[data-l]::before{content:attr(data-l);display:block;color:var(--muted);font-weight:400;font-size:.75rem}
+}
+/* phones: upload zone as a compact row so it takes less height */
+@media (max-width:39.99rem){
+  #drop{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:1rem;row-gap:0;align-items:center;text-align:left;padding:1rem}
+  #drop .ic{grid-row:1/3;margin:0;width:3rem;height:3rem}
+  #drop .ic .i{width:24px;height:24px}
+  #drop b{align-self:end}
+  #drop small{align-self:start}
+}
+/* short landscape phones: keep the header compact */
+@media (max-height:30rem) and (orientation:landscape){
+  header{margin-bottom:1rem}
+  main{padding-top:max(1rem,env(safe-area-inset-top))}
+}
+</style>
+<svg hidden>
+  <!-- Lucide icons (https://lucide.dev), ISC license -->
+  <symbol id="i-headphones" viewBox="0 0 24 24"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-radio" viewBox="0 0 24 24"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/></symbol>
+  <symbol id="i-circle-play" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></symbol>
+  <symbol id="i-disc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
+  <symbol id="i-audio-waveform" viewBox="0 0 24 24"><path d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 1 2-2"/></symbol>
+  <symbol id="i-audio-lines" viewBox="0 0 24 24"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M14 17H5"/><path d="M19 7h-9"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+  <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></symbol>
+  <symbol id="i-volume-1" viewBox="0 0 24 24"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/></symbol>
+  <symbol id="i-volume-2" viewBox="0 0 24 24"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/></symbol>
+  <symbol id="i-arrow-up-to-line" viewBox="0 0 24 24"><path d="M5 3h14"/><path d="m18 13-6-6-6 6"/><path d="M12 7v14"/></symbol>
+  <symbol id="i-move-vertical" viewBox="0 0 24 24"><path d="M12 2v20"/><path d="m8 18 4 4 4-4"/><path d="m8 6 4-4 4 4"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-binary" viewBox="0 0 24 24"><rect x="14" y="14" width="4" height="6" rx="2"/><rect x="6" y="4" width="4" height="6" rx="2"/><path d="M6 20h4"/><path d="M14 10h4"/><path d="M6 14h2v6"/><path d="M14 4h2v6"/></symbol>
+  <symbol id="i-columns" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></symbol>
+  <symbol id="i-triangle-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-loader" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
+</svg>
+<main>
+<header>
+  <span class="ic"><svg class="i"><use href="#i-headphones"/></svg></span>
+  <div>
+    <h1>Loudness normalizer</h1>
+    <p class="sub">Choose a target, add a track, download a WAV at that loudness. Everything runs in your browser.</p>
+  </div>
+</header>
+
+<div class="layout">
+<div class="col">
+  <section class="card">
+    <h2><svg class="i"><use href="#i-music"/></svg>Upload audio track</h2>
+    <label id="drop">
+      <input id="file" type="file" accept=".wav,.flac">
+      <span class="ic lg"><svg class="i"><use href="#i-upload"/></svg></span>
+      <b id="dt">Drop a file or tap to choose</b>
+      <small id="ds">WAV or FLAC, up to 15 minutes</small>
+    </label>
+    <p id="msg" role="status"></p>
+  </section>
+
+  <section class="card">
+    <h2><svg class="i"><use href="#i-target"/></svg>Target</h2>
+    <div id="presets" role="group" aria-label="Target preset"></div>
+    <div id="custom" hidden>
+      <label>Loudness (LUFS)<output id="tlv"></output><input id="tl" type="range" min="-30" max="-5" step="0.1" value="-14"></label>
+      <label>Ceiling (dBTP)<output id="tcv"></output><input id="tc" type="range" min="-6" max="0" step="0.1" value="-1"></label>
+    </div>
+    <div class="note"><svg class="i"><use href="#i-info"/></svg><p id="note"></p></div>
+  </section>
+</div>
+
+<div class="col">
+  <div id="out" hidden>
+    <section class="card">
+      <div class="file">
+        <span class="ic"><svg class="i"><use href="#i-audio-lines"/></svg></span>
+        <b id="name"></b>
+      </div>
+      <div id="fmt" class="chips"></div>
+      <div class="gain">
+        <span class="ic"><svg class="i"><use href="#i-gauge"/></svg></span>
+        <div class="gtxt"><span id="gv"></span><span id="lim"></span></div>
+      </div>
+      <div class="tipbox"><svg class="i"><use href="#i-triangle-alert"/></svg><p id="tip"></p></div>
+    </section>
+
+    <section class="card">
+      <h2><svg class="i"><use href="#i-activity"/></svg>Loudness over time</h2>
+      <canvas id="plot" role="img" aria-label="Short-term loudness over time, original and after normalizing"></canvas>
+      <div class="key"><span><i style="background:var(--muted)"></i>Original</span><span><i style="background:var(--amber)"></i>After</span><span><i style="background:var(--teal)"></i>Target</span></div>
+    </section>
+
+    <section class="card">
+      <h2><svg class="i"><use href="#i-ruler"/></svg>Measurements</h2>
+      <table>
+        <thead><tr><th></th><th>Original</th><th>Target</th><th>Result</th></tr></thead>
+        <tbody id="cmp"></tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2><svg class="i"><use href="#i-sliders"/></svg>Output</h2>
+      <label id="nbl" class="toggle"><span class="lab"><svg class="i"><use href="#i-volume-1"/></svg>Don't make quiet tracks louder</span><input id="noboost" type="checkbox"></label>
+      <button id="go" class="btn" type="button"><svg class="i"><use href="#i-zap"/></svg><span>Normalize</span></button>
+      <a id="dl" class="btn alt" hidden><svg class="i"><use href="#i-download"/></svg><span>Download WAV</span></a>
+      <audio id="pv" controls hidden aria-label="Preview of the normalized track"></audio>
+    </section>
+  </div>
+
+  <section id="empty" class="card empty">
+    <span class="ic lg"><svg class="i"><use href="#i-audio-waveform"/></svg></span>
+    <b>Nothing to analyze yet</b>
+    <p>Add a WAV or FLAC track to see its loudness, true peak and the gain needed to reach your target.</p>
+  </section>
+</div>
+</div>
+</main>
+
+<script id="dsp" type="text/plain">
+let S;
+const db = x => 20 * Math.log10(x);
+const maxOf = a => { let m = 0; for (let i = 0; i < a.length; i++) if (a[i] > m) m = a[i]; return m; };
+
+// ITU-R BS.1770 K-weighting coefficients [b0,b1,b2,a1,a2]
+function shelf(fs) {
+  const Q = 0.7071752369554196, K = Math.tan(Math.PI * 1681.974450955533 / fs);
+  const Vh = 10 ** (3.999843853973347 / 20), Vb = Vh ** 0.4996667741545416, a0 = 1 + K / Q + K * K;
+  return [(Vh + Vb * K / Q + K * K) / a0, 2 * (K * K - Vh) / a0, (Vh - Vb * K / Q + K * K) / a0,
+    2 * (K * K - 1) / a0, (1 - K / Q + K * K) / a0];
+}
+function highpass(fs) {
+  const Q = 0.5003270373238773, K = Math.tan(Math.PI * 38.13547087602444 / fs), a0 = 1 + K / Q + K * K;
+  return [1, -2, 1, 2 * (K * K - 1) / a0, (1 - K / Q + K * K) / a0];
+}
+
+// K-weighted energy per 100 ms hop, summed over channels. Filtering is the costly step, so it is done once per signal.
+function energies(chs, fs) {
+  const hop = Math.round(0.1 * fs), hops = Math.floor(chs[0].length / hop), e = new Float64Array(hops);
+  const [a0, a1, a2, a3, a4] = shelf(fs), [c0, c1, c2, c3, c4] = highpass(fs);
+  for (const c of chs) {
+    let p1 = 0, p2 = 0, q1 = 0, q2 = 0, r1 = 0, r2 = 0, t1 = 0, t2 = 0;
+    for (let k = 0; k < hops; k++) {
+      let acc = 0;
+      for (let i = k * hop, end = i + hop; i < end; i++) {
+        const v = c[i], o = a0 * v + a1 * p1 + a2 * p2 - a3 * q1 - a4 * q2;
+        p2 = p1; p1 = v; q2 = q1; q1 = o;
+        const y = c0 * o + c1 * r1 + c2 * r2 - c3 * t1 - c4 * t2;
+        r2 = r1; r1 = o; t2 = t1; t1 = y;
+        acc += y * y;
+      }
+      e[k] += acc;
+    }
+  }
+  return { e, hop };
+}
+
+// Integrated loudness (gated), loudness range and short-term curve from hop energies. Cheap: no filtering.
+function measure(e, hop) {
+  const hops = e.length, cs = new Float64Array(hops + 1);
+  for (let k = 0; k < hops; k++) cs[k + 1] = cs[k] + e[k];
+  const L = v => -0.691 + 10 * Math.log10(v), mean = a => a.reduce((p, c) => p + c, 0) / a.length;
+  const blocks = n => {
+    const nb = Math.min(n, hops), z = [];
+    for (let k = 0; k + nb <= hops; k++) z.push((cs[k + nb] - cs[k]) / (nb * hop));
+    return z;
+  };
+  const gate = (z, rel) => {
+    const g = z.filter(v => L(v) > -70);
+    if (!g.length) return [];
+    const r = L(mean(g)) + rel;
+    return g.filter(v => L(v) > r);
+  };
+  const b30 = blocks(30), m = gate(blocks(4), -10), st = gate(b30, -20).map(L).sort((a, b) => a - b);
+  // EBU Tech 3342: 10th to 95th percentile of the gated short-term values, linearly interpolated.
+  // Needs at least one full 3 s window; shorter files have no defined range.
+  const q = p => { const x = p * (st.length - 1), i = Math.floor(x); return st[i] + (st[Math.min(i + 1, st.length - 1)] - st[i]) * (x - i); };
+  return { lufs: m.length ? L(mean(m)) : -Infinity, lra: st.length && hops >= 30 ? q(0.95) - q(0.1) : 0, curve: b30.map(L) };
+}
+
+function loudness(chs, fs) {
+  const { e, hop } = energies(chs, fs);
+  return { ...measure(e, hop), e, hop };
+}
+
+// Downsample a loudness curve to <=240 points for drawing (silence clamps to -70)
+function ds(a) {
+  const n = Math.min(a.length, 240), o = [];
+  for (let i = 0; i < n; i++) {
+    const s = Math.floor(i * a.length / n), e = Math.max(s + 1, Math.floor((i + 1) * a.length / n));
+    let t = 0; for (let j = s; j < e; j++) t += Math.max(-70, a[j]);
+    o.push(t / (e - s));
+  }
+  return o;
+}
+
+// True peak by 4x oversampling: the 48-tap polyphase FIR from ITU-R BS.1770-4 Annex 2 (4 phases x 12 taps).
+// The four phases sit between samples, so the sample itself is also checked: the result is never below the sample peak.
+// pk[i] is the largest magnitude among those four points, max across channels. Zero outside the file.
+const TP = new Float64Array([
+  0.0017089843750, 0.0109863281250, -0.0196533203125, 0.0332031250000, -0.0594482421875, 0.1373291015625, 0.9721679687500, -0.1022949218750, 0.0476074218750, -0.0266113281250, 0.0148925781250, -0.0083007812500,
+  -0.0291748046875, 0.0292968750000, -0.0517578125000, 0.0891113281250, -0.1665039062500, 0.4650878906250, 0.7797851562500, -0.2003173828125, 0.1015625000000, -0.0582275390625, 0.0330810546875, -0.0189208984375,
+  -0.0189208984375, 0.0330810546875, -0.0582275390625, 0.1015625000000, -0.2003173828125, 0.7797851562500, 0.4650878906250, -0.1665039062500, 0.0891113281250, -0.0517578125000, 0.0292968750000, -0.0291748046875,
+  -0.0083007812500, 0.0148925781250, -0.0266113281250, 0.0476074218750, -0.1022949218750, 0.9721679687500, 0.1373291015625, -0.0594482421875, 0.0332031250000, -0.0196533203125, 0.0109863281250, 0.0017089843750]);
+// The published taps sum to 0.97-0.99 per phase, which reads up to 0.25 dB low; scale each phase to unity DC gain
+for (let b = 0; b < 48; b += 12) { let g = 0; for (let j = 0; j < 12; j++) g += TP[b + j]; for (let j = 0; j < 12; j++) TP[b + j] /= g; }
+const T0 = TP.subarray(0, 12), T1 = TP.subarray(12, 24), T2 = TP.subarray(24, 36), T3 = TP.subarray(36, 48);
+// keep=true: per-sample array. Otherwise just the overall peak, with no N-sized allocation.
+// Each tap is loaded once and feeds all four phases; the sums are accumulated in the same order as before.
+function peaks(chs, keep) {
+  const N = chs[0].length, pk = keep ? new Float32Array(N) : null;
+  let top = 0;
+  for (const c of chs) for (let i = 0; i < N; i++) {
+    let m = Math.abs(c[i]), a = 0, b = 0, d = 0, f = 0;
+    if (i >= 5 && i + 6 < N) for (let j = 0, p = i + 6; j < 12; j++, p--) { const x = c[p]; a += T0[j] * x; b += T1[j] * x; d += T2[j] * x; f += T3[j] * x; }
+    else for (let j = 0, p = i + 6; j < 12; j++, p--) { const x = p >= 0 && p < N ? c[p] : 0; a += T0[j] * x; b += T1[j] * x; d += T2[j] * x; f += T3[j] * x; }
+    if (a < 0) a = -a; if (b < 0) b = -b; if (d < 0) d = -d; if (f < 0) f = -f;
+    if (a > m) m = a; if (b > m) m = b; if (d > m) m = d; if (f > m) m = f;
+    if (keep) { if (m > pk[i]) pk[i] = m; } else if (m > top) top = m;
+  }
+  return keep ? pk : Math.fround(top);
+}
+
+// 5 ms look-ahead attack, 50 ms release. Null when the ceiling is never exceeded.
+function limiterGain(pk, G, ceil, fs) {
+  const N = pk.length, L = Math.max(1, Math.round(0.005 * fs)), g = S.g || (S.g = new Float32Array(N));
+  let over = false;
+  for (let i = 0; i < N; i++) {
+    const m = pk[i] * G;
+    if (m > ceil) { g[i] = ceil / m; over = true; } else g[i] = 1;
+  }
+  if (!over) return null;
+  const gm = S.gm || (S.gm = new Float32Array(N)), dq = S.dq || (S.dq = new Int32Array(N));
+  let h = 0, t = 0;
+  for (let i = N - 1; i >= 0; i--) {
+    while (t > h && g[dq[t - 1]] >= g[i]) t--;
+    dq[t++] = i;
+    while (dq[h] > i + L) h++;
+    gm[i] = g[dq[h]];
+  }
+  let s = 0, r = 1;
+  const k = 1 - Math.exp(-1 / (0.05 * fs));
+  for (let i = 0; i < N; i++) {
+    s += gm[i];
+    if (i > L) s -= gm[i - L - 1];
+    r = Math.min(s / Math.min(i + 1, L + 1), r + (1 - r) * k);
+    g[i] = r;
+  }
+  return g;
+}
+
+function wav(chs, fs, s) {
+  const n = chs[0].length, c = chs.length, len = n * c * 3, m = 8388607;
+  const buf = new ArrayBuffer(44 + len), v = new DataView(buf), u8 = new Uint8Array(buf);
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, 'RIFF'); v.setUint32(4, 36 + len, true); str(8, 'WAVEfmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, c, true);
+  v.setUint32(24, fs, true); v.setUint32(28, fs * c * 3, true); v.setUint16(32, c * 3, true);
+  v.setUint16(34, 24, true); str(36, 'data'); v.setUint32(40, len, true);
+  let o = 44;
+  for (let i = 0; i < n; i++) for (let k = 0; k < c; k++) {
+    let x = Math.round(Math.fround(chs[k][i] * s) * m);
+    x = x > m ? m : x < -m - 1 ? -m - 1 : x;
+    u8[o] = x; u8[o + 1] = x >> 8; u8[o + 2] = x >> 16; o += 3;
+  }
+  return buf;
+}
+
+// Gain, limit, re-measure; corrects for limiter loss and true-peak overshoot.
+// With no limiting the result is exact from cached hop energies and peaks (gain is linear), so nothing is re-filtered.
+function run(o) {
+  const { chs, pk, fs, e, hop, pm } = S, N = chs[0].length;
+  let out = null;
+  const apply = (G, g) => {
+    out = out || chs.map(() => new Float32Array(N));
+    for (let k = 0; k < out.length; k++) { const c = chs[k], r = out[k]; for (let i = 0; i < N; i++) r[i] = c[i] * G * (g ? g[i] : 1); }
+  };
+  let G = 10 ** ((o.lufs - S.lufs) / 20);
+  if (o.noBoost) G = Math.min(G, 1);
+  const cap = Math.min(G * 4, o.noBoost ? 1 : Infinity);
+  let ceil = 10 ** (o.tp / 20), res, tp, g;
+  for (let pass = 1; pass <= 5; pass++) {
+    g = limiterGain(pk, G, ceil, fs);
+    if (g) {
+      postMessage({ type: 'status', text: `Limiting, pass ${pass} of up to 5...` });
+      apply(G, g);
+      res = loudness(out, fs);
+      tp = db(peaks(out));
+    } else {
+      res = measure(e.map(v => v * G * G), hop);
+      tp = db(pm * G);
+    }
+    if (tp - o.tp > 0.02) ceil *= 10 ** (-(tp - o.tp) / 20);
+    else if (g && Math.abs(o.lufs - res.lufs) > 0.05 && G < cap) G = Math.min(G * 10 ** ((o.lufs - res.lufs) / 20), cap);
+    else break;
+  }
+  if (!g && tp - o.tp > 0.005) apply(G, null); // otherwise the WAV is written straight from the source
+  // If five passes were not enough, trim the whole output so the ceiling is always held
+  let trim = 0;
+  if (tp - o.tp > 0.005) {
+    trim = tp - o.tp; const k = 10 ** (-trim / 20);
+    for (const r of out) for (let i = 0; i < N; i++) r[i] *= k;
+    tp = o.tp; res = { ...res, lufs: res.lufs - trim, curve: res.curve.map(v => v - trim) };
+  }
+  let reduction = 0;
+  if (g) { let m = 1; for (let i = 0; i < N; i++) if (g[i] < m) m = g[i]; reduction = -db(m); }
+  S.g = S.gm = S.dq = null;
+  postMessage({ type: 'status', text: 'Encoding WAV...' });
+  const buf = out ? wav(out, fs, 1) : wav(chs, fs, G);
+  return { type: 'done', job: o.job, buf, lufs: res.lufs, lra: res.lra, tp, reduction, trim, curve: ds(res.curve) };
+}
+
+onmessage = ({ data: d }) => {
+  try {
+    if (d.type === 'analyze') {
+      const r = loudness(d.chs, d.fs), pk = peaks(d.chs, true), pm = maxOf(pk);
+      S = { chs: d.chs, pk, pm, fs: d.fs, lufs: r.lufs, e: r.e, hop: r.hop };
+      postMessage({ type: 'analyzed', job: d.job, lufs: r.lufs, lra: r.lra, tp: db(pm), curve: ds(r.curve) });
+    } else { const r = run(d); postMessage(r, [r.buf]); }
+  } catch (e) { postMessage({ type: 'error', job: d.job, text: String(e.message || e) }); }
+};
+</script>
+<script>
+const $ = s => document.querySelector(s);
+const n1 = v => isFinite(v) ? (Math.abs(v) < 0.05 ? '0.0' : v.toFixed(1)) : '-inf';
+const EXT = /\.(wav|flac)$/i;
+
+const PRESETS = [
+  { g: 'Streaming', id: 'stream', i: 'i-radio', name: 'Spotify / Tidal', lufs: -14, tp: -1, note: 'The usual streaming volume. Spotify and Tidal leave tracks at this level alone.' },
+  { g: 'Streaming', id: 'apple', i: 'i-circle-play', name: 'Apple Music', lufs: -16, tp: -1, note: 'Apple Music adjusts tracks to about this volume.' },
+  { g: 'Streaming', id: 'amazon', i: 'i-cloud', name: 'Amazon Music', lufs: -14, tp: -2, note: 'Same volume as Spotify, with a little extra margin against distortion.' },
+  { g: 'Streaming', id: 'deezer', i: 'i-disc', name: 'Deezer', lufs: -15, tp: -1, note: 'Deezer adjusts tracks to about this volume.' },
+  { g: 'Loud and dynamic', id: 'rel', i: 'i-trophy', name: 'Competitive release', lufs: -11, tp: -1, note: 'Louder than streaming, but not squashed. Platforms will turn it down.' },
+  { g: 'Loud and dynamic', id: 'club', i: 'i-flame', name: 'Club / DJ', lufs: -9, tp: -1, note: 'Very loud. Tracks with big quiet-to-loud swings may sound squashed.' },
+  { g: 'Loud and dynamic', id: 'dyn', i: 'i-audio-waveform', name: 'Dynamic / audiophile', lufs: -18, tp: -1, note: 'Quieter, with room for loud and soft parts. Streaming services will turn it up.' },
+  { g: 'Loud and dynamic', id: 'custom', i: 'i-settings', name: 'Custom', spec: 'Your own values', note: 'Set your own loudness and ceiling.' },
+];
+
+const store = {
+  get: k => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+};
+let sel = PRESETS.find(p => p.id === store.get('ln_preset')) || PRESETS[0];
+let src = null, res = null, dlUrl = null, busy = false, loading = false, gen = 0;
+
+const DSP_URL = URL.createObjectURL(new Blob([$('#dsp').textContent], { type: 'text/javascript' }));
+let worker;
+const target = () => sel.id === 'custom' ? { lufs: +$('#tl').value, tp: +$('#tc').value } : sel;
+const ico = (id, cls) => {
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), u = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  s.setAttribute('class', 'i' + (cls ? ' ' + cls : '')); s.setAttribute('aria-hidden', 'true'); u.setAttribute('href', '#' + id); s.append(u); return s;
+};
+const msg = (t, err) => {
+  const m = $('#msg'), text = document.createElement('span');
+  m.className = err ? 'err' : ''; text.textContent = t;
+  m.replaceChildren(...(t ? [ico(err ? 'i-alert' : /\.\.\.$/.test(t) ? 'i-loader' : 'i-info', !err && /\.\.\.$/.test(t) ? 'spin' : ''), text] : []));
+};
+
+// Sample rate, bit depth and length from the header (0 when unknown). RIFF chunks are walked, since
+// JUNK, bext or LIST chunks can precede 'fmt ' and move the fields.
+// Source bit depth, for the file info line (exports are always 24-bit)
+const outBits = b => b >= 32 ? 32 : b > 16 ? 24 : b > 0 ? 16 : 24;
+function sniff(u) {
+  const none = { rate: 0, dur: 0, bits: 0, ch: 0 };
+  if (u.length < 32) return none;
+  const dv = new DataView(u.buffer, u.byteOffset, u.byteLength);
+  const tag = o => String.fromCharCode(u[o], u[o + 1], u[o + 2], u[o + 3]);
+  let rate = 0, dur = 0, bits = 0, ch = 0;
+  if (tag(0) === 'fLaC') {
+    rate = u[18] << 12 | u[19] << 4 | u[20] >> 4;
+    bits = ((u[20] & 1) << 4 | u[21] >> 4) + 1;
+    ch = (u[20] >> 1 & 7) + 1;
+    dur = rate ? ((u[21] & 15) * 2 ** 32 + dv.getUint32(22)) / rate : 0;
+  } else if (tag(0) === 'RIFF' || tag(0) === 'RF64') {
+    let br = 0;
+    for (let o = 12; o + 8 <= u.length;) {
+      const id = tag(o), size = dv.getUint32(o + 4, true);
+      if (id === 'fmt ' && o + 24 <= u.length) {
+        rate = dv.getUint32(o + 12, true); br = dv.getUint32(o + 16, true); bits = dv.getUint16(o + 22, true); ch = dv.getUint16(o + 10, true);
+        let ft = dv.getUint16(o + 8, true);
+        if (ft === 0xFFFE && o + 34 <= u.length) ft = dv.getUint16(o + 32, true); // extensible: real format is in the sub-format GUID
+        if (ft === 3) bits = 32; // IEEE float
+      }
+      if (id === 'data') { dur = br ? Math.min(size, u.length - o - 8) / br : 0; break; }
+      o += 8 + size + (size & 1);
+    }
+  }
+  const ok = rate >= 8000 && rate <= 384000;
+  return { rate: ok ? rate : 0, dur: ok ? dur : 0, bits, ch };
+}
+
+// Limits scale with the device: phones and low-memory machines get less headroom than desktops
+const LOW = matchMedia('(pointer: coarse)').matches || (navigator.deviceMemory || 8) <= 4;
+const MAX_SEC = (LOW ? 10 : 15) * 60, MAX_BYTES = (LOW ? 350 : 500) * 2 ** 20;
+const clock = t => { const n = Math.round(t); return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`; };
+const HINT = `WAV or FLAC, mono or stereo, up to ${MAX_SEC / 60} minutes`;
+
+const noMulti = n => msg(`That file has ${n} channels. Only mono and stereo files are supported.`, true);
+const tooLong = t => msg(`That track is ${clock(t)} long. The limit is ${MAX_SEC / 60} minutes${LOW ? ' on this device' : ''}.`, true);
+
+const COLS = ['', 'Original', 'Target', 'Result'];
+function cells(tr, list, icon) {
+  tr.replaceChildren(...list.map(([text, cls], i) => {
+    const td = document.createElement('td');
+    if (i) { td.textContent = text; td.dataset.l = COLS[i]; }
+    else { const l = document.createElement('span'); l.className = 'lab'; l.append(ico(icon), text); td.append(l); }
+    if (cls) td.className = cls;
+    return td;
+  }));
+}
+
+function draw(gain) {
+  const cv = $('#plot'), w = cv.clientWidth, h = cv.clientHeight;
+  if (!src || !src.curve || !w) return;
+  const dpr = devicePixelRatio || 1, g = cv.getContext('2d');
+  cv.width = w * dpr; cv.height = h * dpr; g.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement), col = n => css.getPropertyValue(n).trim();
+  const lo = -50, hi = -5, pad = 6, t = target();
+  const X = (i, n) => pad + (w - 2 * pad) * i / Math.max(1, n - 1);
+  const Y = v => h - pad - (h - 2 * pad) * (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo);
+  const hline = (v, c, dash) => { g.beginPath(); g.setLineDash(dash); g.strokeStyle = c; g.lineWidth = 1; g.moveTo(0, Y(v)); g.lineTo(w, Y(v)); g.stroke(); g.setLineDash([]); };
+  g.font = '11px Inter,system-ui,sans-serif'; g.fillStyle = col('--muted');
+  for (const v of [-40, -30, -20, -10]) { hline(v, col('--line'), []); g.fillText(v, 4, Y(v) - 3); }
+  hline(t.lufs, col('--teal'), [4, 4]);
+  const trace = (a, c, lw, alpha) => {
+    g.beginPath(); g.globalAlpha = alpha; g.strokeStyle = c; g.lineWidth = lw; g.lineJoin = 'round';
+    if (a.length === 1) a = [a[0], a[0]]; // a file under 3 s has one short-term value: draw it flat
+    a.forEach((v, i) => i ? g.lineTo(X(i, a.length), Y(v)) : g.moveTo(X(i, a.length), Y(v)));
+    g.stroke(); g.globalAlpha = 1;
+  };
+  trace(src.curve, col('--muted'), 1.5, 1);
+  if (res) trace(res.curve, col('--amber'), 2, 1);
+  else trace(src.curve.map(v => v + gain), col('--amber'), 2, .4); // preview of the gain before processing
+}
+
+// Release the WAV blob and detach it from the player and download link
+function freeResult() {
+  if (dlUrl) { URL.revokeObjectURL(dlUrl); dlUrl = null; }
+  const pv = $('#pv'); pv.pause(); pv.removeAttribute('src'); pv.load();
+  $('#dl').removeAttribute('href');
+}
+
+function render() {
+  document.querySelectorAll('#presets .tile').forEach(b => { b.setAttribute('aria-pressed', b.p === sel); b.disabled = busy; });
+  $('#tl').disabled = $('#tc').disabled = busy;
+  $('#note').textContent = sel.note;
+  $('#custom').hidden = sel.id !== 'custom';
+  $('#tlv').textContent = $('#tl').value;
+  $('#tcv').textContent = $('#tc').value;
+  $('#dl').hidden = !res;
+  $('#pv').hidden = !res;
+  if (!res && dlUrl) freeResult(); // preset, ceiling or bit depth changed: drop the old WAV now
+  const locked = !!res;
+  $('#go').disabled = busy || locked;
+  $('#go span').textContent = locked ? 'Change a setting to normalize again' : 'Normalize';
+  $('#noboost').disabled = busy || locked;
+  if (!src) return;
+  const t = target(), boost = !$('#noboost').checked;
+  const gain = boost ? t.lufs - src.lufs : Math.min(0, t.lufs - src.lufs);
+  $('#nbl').hidden = t.lufs <= src.lufs;
+  const ch = src.ch;
+  $('#name').textContent = src.name;
+  // numbers only, so innerHTML is safe here
+  $('#fmt').innerHTML = `<span><svg class="i"><use href="#i-audio-waveform"/></svg>${src.fs / 1000} kHz${src.out !== src.fs ? ` <svg class="i" role="img" aria-label="to"><use href="#i-arrow"/></svg> ${src.out / 1000} kHz` : ''}</span><span><svg class="i"><use href="#i-binary"/></svg>${src.bits === 32 ? '32-bit float' : src.bits + '-bit'}</span><span><svg class="i"><use href="#i-columns"/></svg>${ch === 1 ? 'mono' : 'stereo'}</span><span><svg class="i"><use href="#i-clock"/></svg>${clock(src.dur)}</span>`;
+  $('#gv').textContent = (gain >= 0.05 ? '+' : '') + n1(gain) + ' dB';
+  $('#lim').textContent = src.tp + gain > t.tp ? 'gain needed. Limiter engages to hold the ceiling.' : 'gain needed. No limiting required.';
+  const tips = [];
+  if (src.tp > 0) tips.push('The original already peaks above 0 dBTP.');
+  if (gain >= 9) tips.push('Big boost: expect heavy limiting.');
+  if (src.lra > 10 && t.lufs > -12) tips.push('This track is very dynamic. A loud target will squash it.');
+  $('#tip').textContent = tips.join(' ');
+  draw(gain);
+  const na = ['-', 'na'];
+  const table = [
+    ['Loudness (LUFS)', [n1(src.lufs)], [String(t.lufs)], res ? [n1(res.lufs), 'r'] : na],
+    ['True peak (dBTP)', [n1(src.tp)], [String(t.tp)], res ? [n1(res.tp), 'r'] : na],
+    ['Loudness range (LU)', [n1(src.lra)], na, res ? [n1(res.lra), 'r'] : na],
+  ];
+  const rowIcons = ['i-volume-2', 'i-arrow-up-to-line', 'i-move-vertical'];
+  $('#cmp').replaceChildren(...table.map(([label, ...rest], n) => {
+    const tr = document.createElement('tr');
+    cells(tr, [[label], ...rest], rowIcons[n]);
+    return tr;
+  }));
+}
+
+async function decode(data, rate) {
+  let ctx;
+  try { ctx = new AudioContext(rate ? { sampleRate: rate } : undefined); } catch { ctx = new AudioContext(); }
+  try { return await ctx.decodeAudioData(data); } finally { ctx.close(); }
+}
+
+async function load(file) {
+  if (busy || loading) return msg('Wait for the current job to finish.', true);
+  if (!EXT.test(file.name)) return msg('Unsupported file. Use WAV or FLAC.', true);
+  if (file.size > MAX_BYTES) return msg(`That file is ${Math.round(file.size / 2 ** 20)} MB. The limit is ${MAX_BYTES / 2 ** 20} MB${LOW ? ' on this device' : ''}.`, true);
+  const id = `${file.name}|${file.size}|${file.lastModified}`;
+  if (src && src.id === id) return msg('That file is already loaded.', true);
+  loading = true; msg('Reading file...');
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer()), { rate, dur, bits, ch } = sniff(bytes);
+    const magic = String.fromCharCode(...bytes.subarray(0, 4));
+    if (!['RIFF', 'RF64', 'fLaC'].includes(magic)) return msg('That is not a WAV or FLAC file. AIFF is not supported.', true);
+    if (ch > 2) return noMulti(ch);
+    if (dur > MAX_SEC) return tooLong(dur);
+    // Decode at the file's own sample rate: no resampling
+    const buf = await decode(bytes.buffer, rate);
+    if (buf.duration > MAX_SEC) return tooLong(buf.duration); // backstop when the header has no length
+    if (buf.numberOfChannels > 2) return noMulti(buf.numberOfChannels);
+    if (buf.length * buf.numberOfChannels > MAX_SEC * 96000 * 2) return msg(`At ${buf.sampleRate / 1000} kHz that file is too large to process${LOW ? ' on this device' : ''}. Try a shorter file.`, true);
+    const fs = rate || buf.sampleRate;
+    const chs = Array.from({ length: buf.numberOfChannels }, (_, i) => buf.getChannelData(i).slice());
+    // Only now replace the previous track, so a rejected file leaves the old result in place
+    $('#out').hidden = true; res = null; freeResult();
+    $('#dt').textContent = 'Drop a file or tap to choose'; $('#ds').textContent = HINT;
+    src = { name: file.name, id, fs, ch: chs.length, dur: buf.duration, out: buf.sampleRate, bits: outBits(bits) };
+    msg('Analyzing...');
+    worker.postMessage({ type: 'analyze', job: ++gen, chs, fs: buf.sampleRate }, chs.map(c => c.buffer));
+  } catch { msg('Could not decode that file. Check that it is a valid WAV or FLAC.', true); }
+  finally { loading = false; }
+}
+
+function normalize() {
+  const t = target();
+  if (loading) return msg('Still reading the new file.', true);
+  if (busy || res) return;
+  if (!isFinite(t.lufs) || !isFinite(t.tp)) return msg('Enter a target LUFS and ceiling.', true);
+  busy = true; res = null; $('#go').disabled = true; render();
+  msg('Normalizing...');
+  worker.postMessage({ job: gen, lufs: t.lufs, tp: t.tp, noBoost: $('#noboost').checked });
+}
+
+const onWorkerError = e => {
+  // The worker's cached analysis dies with it, so drop the track and start a fresh worker
+  if (e.preventDefault) e.preventDefault();
+  busy = false; src = null; res = null; freeResult();
+  $('#out').hidden = true; $('#dt').textContent = 'Drop a file or tap to choose'; $('#ds').textContent = HINT;
+  worker.terminate(); spawn();
+  render(); msg('Processing failed: ' + (e.message || 'the audio worker stopped') + '. Choose the file again.', true);
+};
+const onWorkerMessage = ({ data: d }) => {
+  if (d.type === 'status') return msg(d.text);
+  if (d.job !== gen) return; // reply to a file that has since been replaced
+  if (d.type === 'error') {
+    busy = false; if (src && src.lufs === undefined) src = null; // failed analysis must not block re-choosing the same file
+    render(); return msg('Processing failed: ' + d.text, true);
+  }
+  if (d.type === 'analyzed') {
+    if (!isFinite(d.lufs)) { const short = src.dur < 0.1; src = null; return msg(short ? 'That file is too short to measure.' : 'This track is silent.', true); }
+    Object.assign(src, d);
+    $('#dt').textContent = src.name;
+    $('#ds').textContent = 'Tap to choose another file';
+    $('#out').hidden = false;
+    msg(''); render();
+    return;
+  }
+  busy = false; $('#go').disabled = false;
+  freeResult();
+  dlUrl = URL.createObjectURL(new Blob([d.buf], { type: 'audio/wav' }));
+  const t = target(), a = $('#dl');
+  a.href = dlUrl; $('#pv').src = dlUrl;
+  a.download = `${src.name.replace(/\.[^.]+$/, '')}_${t.lufs}LUFS.wav`;
+  const { buf, ...rest } = d; res = rest; // the WAV lives in the blob only; don't keep a second copy
+  render();
+  const parts = [];
+  if (!$('#nbl').hidden && $('#noboost').checked) parts.push(`Left at ${n1(d.lufs)} LUFS: the track is already quieter than the target.`);
+  else if (t.lufs - d.lufs > 0.3) parts.push(`Reached ${n1(d.lufs)} LUFS. Holding the ceiling at this target needs more limiting than is safe.`);
+  if (d.reduction) parts.push(`Limiter reduced peaks by up to ${n1(d.reduction)} dB.`);
+  if (d.trim > 0.05) parts.push(`Peaks overshot, so the level was trimmed ${n1(d.trim)} dB to hold the ceiling.`);
+  msg(parts.join(' '));
+};
+
+function spawn() { worker = new Worker(DSP_URL); worker.onerror = onWorkerError; worker.onmessage = onWorkerMessage; }
+spawn();
+
+const groups = {};
+PRESETS.forEach(p => {
+  if (!groups[p.g]) {
+    const label = Object.assign(document.createElement('p'), { className: 'glabel', textContent: p.g });
+    groups[p.g] = Object.assign(document.createElement('div'), { className: 'grid' });
+    $('#presets').append(label, groups[p.g]);
+  }
+  const b = document.createElement('button'), name = document.createElement('b'), spec = document.createElement('small');
+  b.type = 'button'; b.className = 'tile'; b.p = p;
+  name.append(ico(p.i), p.name);
+  spec.textContent = p.spec || `${p.lufs} LUFS / ${p.tp} dBTP`;
+  b.append(name, spec);
+  b.onclick = () => { if (p === sel) return; sel = p; res = null; store.set('ln_preset', p.id); render(); };
+  groups[p.g].append(b);
+});
+// smallest and largest value under each slider, read from its own min/max
+document.querySelectorAll('#custom input').forEach(i => {
+  const e = document.createElement('span');
+  e.className = 'ends'; e.append(...[i.min, i.max].map(v => Object.assign(document.createElement('span'), { textContent: v })));
+  i.after(e);
+});
+['#tl', '#tc'].forEach(s => {
+  const k = 'ln_' + s.slice(1), v = store.get(k);
+  if (v) $(s).value = v;
+  $(s).addEventListener('input', () => { store.set(k, $(s).value); res = null; render(); });
+});
+$('#noboost').onchange = render;
+addEventListener('resize', () => render());
+['dragover', 'drop'].forEach(n => addEventListener(n, e => e.preventDefault())); // a miss must not navigate to the file
+$('#go').onclick = normalize;
+$('#file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) load(f); };
+const drop = $('#drop');
+['dragenter', 'dragover'].forEach(n => drop.addEventListener(n, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(n => drop.addEventListener(n, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => e.dataTransfer.files[0] && load(e.dataTransfer.files[0]));
+$('#ds').textContent = HINT;
+render();
+</script>
