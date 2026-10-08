@@ -243,7 +243,6 @@ audio{width:100%;height:var(--h);margin-top:.75rem;color-scheme:dark}
     <div id="presets" role="group" aria-label="Target preset"></div>
     <div id="custom" hidden>
       <label>Loudness (LUFS)<output id="tlv"></output><input id="tl" type="range" min="-30" max="-5" step="0.1" value="-14"></label>
-      <label>Ceiling (dBTP)<output id="tcv"></output><input id="tc" type="range" min="-6" max="0" step="0.1" value="-1"></label>
     </div>
     <div class="note"><svg class="i"><use href="#i-info"/></svg><p id="note"></p></div>
   </section>
@@ -458,28 +457,34 @@ function run(o) {
   if (o.noBoost) G = Math.min(G, 1);
   const cap = Math.min(G * 4, o.noBoost ? 1 : Infinity);
   let ceil = 10 ** (o.tp / 20), res, tp, g;
-  for (let pass = 1; pass <= 5; pass++) {
+  const TOL = 0.001; // dB. The true peak must land within this of the ceiling and never above it.
+  for (let pass = 1; pass <= 8; pass++) {
     g = limiterGain(pk, G, ceil, fs);
     if (g) {
-      postMessage({ type: 'status', text: `Limiting, pass ${pass} of up to 5...` });
+      postMessage({ type: 'status', text: `Limiting, pass ${pass} of up to 8...` });
       apply(G, g);
       res = loudness(out, fs);
       tp = db(peaks(out));
     } else {
+      out = null; // no limiting this pass: drop any buffer left over from an earlier one
       res = measure(e.map(v => v * G * G), hop);
       tp = db(pm * G);
     }
-    if (tp - o.tp > 0.02) ceil *= 10 ** (-(tp - o.tp) / 20);
+    const d = tp - o.tp;
+    // Over the ceiling: pull the limiter ceiling down. While limiting, also pull it up when the peak lands
+    // below -1.5, so the true peak sits on the ceiling rather than somewhere under it.
+    if (d > TOL || (g && d < -TOL)) ceil *= 10 ** (-d / 20);
     else if (g && Math.abs(o.lufs - res.lufs) > 0.05 && G < cap) G = Math.min(G * 10 ** ((o.lufs - res.lufs) / 20), cap);
     else break;
   }
-  if (!g && tp - o.tp > 0.005) apply(G, null); // otherwise the WAV is written straight from the source
-  // If five passes were not enough, trim the whole output so the ceiling is always held
+  if (!g && tp > o.tp) apply(G, null); // otherwise the WAV is written straight from the source
+  // If the passes did not converge, trim the whole output so the ceiling is never exceeded.
+  // The extra 0.0005 dB covers 24-bit rounding. The peak is then measured again rather than assumed.
   let trim = 0;
-  if (tp - o.tp > 0.005) {
-    trim = tp - o.tp; const k = 10 ** (-trim / 20);
+  if (tp > o.tp) {
+    trim = tp - o.tp + 0.0005; const k = 10 ** (-trim / 20);
     for (const r of out) for (let i = 0; i < N; i++) r[i] *= k;
-    tp = o.tp; res = { ...res, lufs: res.lufs - trim, curve: res.curve.map(v => v - trim) };
+    tp = db(peaks(out)); res = { ...res, lufs: res.lufs - trim, curve: res.curve.map(v => v - trim) };
   }
   let reduction = 0;
   if (g) { let m = 1; for (let i = 0; i < N; i++) if (g[i] < m) m = g[i]; reduction = -db(m); }
@@ -505,14 +510,10 @@ const n1 = v => isFinite(v) ? (Math.abs(v) < 0.05 ? '0.0' : v.toFixed(1)) : '-in
 const EXT = /\.(wav|flac)$/i;
 
 const PRESETS = [
-  { g: 'Streaming', id: 'stream', i: 'i-radio', name: 'Spotify / Tidal', lufs: -14, tp: -1, note: 'The usual streaming volume. Spotify and Tidal leave tracks at this level alone.' },
-  { g: 'Streaming', id: 'apple', i: 'i-circle-play', name: 'Apple Music', lufs: -16, tp: -1, note: 'Apple Music adjusts tracks to about this volume.' },
-  { g: 'Streaming', id: 'amazon', i: 'i-cloud', name: 'Amazon Music', lufs: -14, tp: -2, note: 'Same volume as Spotify, with a little extra margin against distortion.' },
-  { g: 'Streaming', id: 'deezer', i: 'i-disc', name: 'Deezer', lufs: -15, tp: -1, note: 'Deezer adjusts tracks to about this volume.' },
-  { g: 'Loud and dynamic', id: 'rel', i: 'i-trophy', name: 'Competitive release', lufs: -11, tp: -1, note: 'Louder than streaming, but not squashed. Platforms will turn it down.' },
-  { g: 'Loud and dynamic', id: 'club', i: 'i-flame', name: 'Club / DJ', lufs: -9, tp: -1, note: 'Very loud. Tracks with big quiet-to-loud swings may sound squashed.' },
-  { g: 'Loud and dynamic', id: 'dyn', i: 'i-audio-waveform', name: 'Dynamic / audiophile', lufs: -18, tp: -1, note: 'Quieter, with room for loud and soft parts. Streaming services will turn it up.' },
-  { g: 'Loud and dynamic', id: 'custom', i: 'i-settings', name: 'Custom', spec: 'Your own values', note: 'Set your own loudness and ceiling.' },
+  { g: 'Balanced', id: 'com', i: 'i-disc', name: 'Commercial release', lufs: -10, tp: -1.5, note: 'Loud and competitive, in line with most commercial releases.' },
+  { g: 'Balanced', id: 'rock', i: 'i-music', name: 'Pop / Rock', lufs: -11, tp: -1.5, note: 'Loud but still open. Keeps more punch than a full commercial master.' },
+  { g: 'Dynamic', id: 'acoustic', i: 'i-audio-waveform', name: 'Acoustic / Jazz', lufs: -13, tp: -1.5, note: 'Gentle level that keeps natural dynamics. Little or no limiting.' },
+  { g: 'Dynamic', id: 'custom', i: 'i-settings', name: 'Custom', spec: 'Your own LUFS', note: 'Set your own loudness. The ceiling is always -1.5 dBTP.' },
 ];
 
 const store = {
@@ -524,7 +525,7 @@ let src = null, res = null, dlUrl = null, busy = false, loading = false, gen = 0
 
 const DSP_URL = URL.createObjectURL(new Blob([$('#dsp').textContent], { type: 'text/javascript' }));
 let worker;
-const target = () => sel.id === 'custom' ? { lufs: +$('#tl').value, tp: +$('#tc').value } : sel;
+const target = () => sel.id === 'custom' ? { lufs: +$('#tl').value, tp: -1.5 } : sel;
 const ico = (id, cls) => {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), u = document.createElementNS('http://www.w3.org/2000/svg', 'use');
   s.setAttribute('class', 'i' + (cls ? ' ' + cls : '')); s.setAttribute('aria-hidden', 'true'); u.setAttribute('href', '#' + id); s.append(u); return s;
@@ -621,11 +622,10 @@ function freeResult() {
 
 function render() {
   document.querySelectorAll('#presets .tile').forEach(b => { b.setAttribute('aria-pressed', b.p === sel); b.disabled = busy; });
-  $('#tl').disabled = $('#tc').disabled = busy;
+  $('#tl').disabled = busy;
   $('#note').textContent = sel.note;
   $('#custom').hidden = sel.id !== 'custom';
   $('#tlv').textContent = $('#tl').value;
-  $('#tcv').textContent = $('#tc').value;
   $('#dl').hidden = !res;
   $('#pv').hidden = !res;
   if (!res && dlUrl) freeResult(); // preset, ceiling or bit depth changed: drop the old WAV now
@@ -773,7 +773,7 @@ document.querySelectorAll('#custom input').forEach(i => {
   e.className = 'ends'; e.append(...[i.min, i.max].map(v => Object.assign(document.createElement('span'), { textContent: v })));
   i.after(e);
 });
-['#tl', '#tc'].forEach(s => {
+['#tl'].forEach(s => {
   const k = 'ln_' + s.slice(1), v = store.get(k);
   if (v) $(s).value = v;
   $(s).addEventListener('input', () => { store.set(k, $(s).value); res = null; render(); });
