@@ -12,20 +12,20 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 *:focus{outline:none}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 "Inter",system-ui,-apple-system,"Segoe UI",sans-serif}
-main{max-width:66rem;margin:0 auto;padding:max(1.5rem,env(safe-area-inset-top)) max(1rem,env(safe-area-inset-right)) max(4rem,env(safe-area-inset-bottom)) max(1rem,env(safe-area-inset-left))}
+body{margin:0;background:var(--bg);color:var(--text);min-height:100vh;min-height:100dvh;font:1rem/1.5 "Inter",system-ui,-apple-system,"Segoe UI",sans-serif}
+main{width:min(100%,66rem);margin-inline:auto;padding:max(1.5rem,env(safe-area-inset-top)) max(1rem,env(safe-area-inset-right)) max(4rem,env(safe-area-inset-bottom)) max(1rem,env(safe-area-inset-left))}
 h1,h2,#gv{font-weight:600;letter-spacing:-.02em}
 p{margin:0}
 button,input{font:inherit;color:inherit}
 
 /* icons: Lucide, inlined as symbols */
-.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.i{width:1.25rem;height:1.25rem;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .ic{display:grid;place-items:center;flex:none;width:2.75rem;height:2.75rem;border-radius:var(--r);background:var(--tint);border:1px solid var(--tint-line);color:var(--amber)}
-.ic .i{width:22px;height:22px}
+.ic .i{width:1.375rem;height:1.375rem}
 .ic.lg{width:3.25rem;height:3.25rem;border-radius:50%}
-.ic.lg .i{width:26px;height:26px}
+.ic.lg .i{width:1.625rem;height:1.625rem}
 .lab{display:inline-flex;align-items:center;gap:.5rem;min-width:0}
-.lab .i{width:16px;height:16px;color:var(--muted)}
+.lab .i{width:1rem;height:1rem;color:var(--muted)}
 .spin{animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spin{animation:none}}
@@ -33,7 +33,7 @@ button,input{font:inherit;color:inherit}
 /* page header */
 header{display:flex;align-items:center;gap:.85rem;margin-bottom:1.5rem}
 header .ic{width:2.75rem;height:2.75rem}
-h1{font-size:1.5rem;line-height:1.2;margin:0}
+h1{font-size:clamp(1.5rem,1.1rem + 1.6vw,1.9rem);line-height:1.2;margin:0}
 .sub{color:var(--muted);font-size:.925rem;margin-top:.2rem}
 
 /* layout: one column on phones, controls beside results on wide screens */
@@ -41,7 +41,7 @@ h1{font-size:1.5rem;line-height:1.2;margin:0}
 .col,#out{display:grid;gap:1rem;min-width:0;align-content:start}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--rl);padding:1rem;min-width:0}
 h2{display:flex;align-items:center;gap:.5rem;font-size:1.05rem;line-height:1.3;margin:0 0 1rem}
-h2 .i{width:18px;height:18px;color:var(--amber)}
+h2 .i{width:1.125rem;height:1.125rem;color:var(--amber)}
 
 /* controls share one height, radius, border and focus treatment */
 .tile,#drop,.btn,.toggle{border-radius:var(--r);border:1px solid var(--line);transition:border-color .15s,box-shadow .15s,background .15s}
@@ -50,9 +50,9 @@ h2 .i{width:18px;height:18px;color:var(--amber)}
 .glabel{color:var(--muted);font-size:.85rem;margin:1.25rem 0 .5rem}
 .glabel:first-child{margin-top:0}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}
-.tile{display:flex;flex-direction:column;justify-content:center;gap:.15rem;text-align:left;background:var(--bg);padding:.65rem .75rem;min-height:3.5rem;cursor:pointer;min-width:0}
+.tile{display:flex;flex-direction:column;justify-content:center;gap:.15rem;text-align:start;background:var(--bg);padding:.65rem .75rem;min-height:3.5rem;cursor:pointer;min-width:0}
 .tile b{display:flex;align-items:flex-start;gap:.45rem;font-size:.925rem;line-height:1.25}
-.tile b .i{width:18px;height:1.25em;color:var(--muted);transition:color .15s}
+.tile b .i{width:1.125rem;height:1.25em;color:var(--muted);transition:color .15s}
 .tile small{color:var(--muted);font-size:.78rem;line-height:1.3}
 .tile:hover{border-color:var(--muted)}
 .tile:disabled:not([aria-pressed=true]){opacity:.5;cursor:not-allowed}
@@ -62,7 +62,7 @@ h2 .i{width:18px;height:18px;color:var(--amber)}
 #custom label{color:var(--muted);font-size:.85rem}
 #custom input{display:block;width:100%;margin-top:.25rem}
 #custom .ends{display:flex;justify-content:space-between;color:var(--muted);font-size:.75rem;font-variant-numeric:tabular-nums}
-#custom output{float:right;color:var(--text);font-variant-numeric:tabular-nums}
+#custom output{float:inline-end;color:var(--text);font-variant-numeric:tabular-nums}
 input[type=range]{appearance:none;height:1.5rem;padding:0;background:none;cursor:pointer}
 input[type=range]::-webkit-slider-runnable-track{height:.35rem;border-radius:1rem;background:var(--line)}
 input[type=range]::-moz-range-track{height:.35rem;border-radius:1rem;background:var(--line)}
@@ -72,17 +72,17 @@ input[type=range]:focus-visible{box-shadow:none}
 input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:var(--ring)}
 input[type=range]:focus-visible::-moz-range-thumb{box-shadow:var(--ring)}
 .note{display:flex;gap:.6rem;align-items:flex-start;margin-top:1rem;color:var(--muted);font-size:.875rem}
-.note .i{width:16px;height:1.5em;color:var(--amber)}
+.note .i{width:1rem;height:1.5em;color:var(--amber)}
 
 #drop{position:relative;display:flex;flex-direction:column;align-items:center;gap:.25rem;border-style:dashed;border-width:2px;padding:1.5rem 1rem;text-align:center;cursor:pointer}
 #drop .ic{margin-bottom:.5rem}
-#drop b{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#drop b{max-width:100%;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow-wrap:anywhere}
 #drop small{color:var(--muted);font-size:.875rem}
 #drop:hover{border-color:var(--muted)}
 #drop.over{border-color:var(--amber);background:rgba(224,164,88,.08)}
 #drop input{position:absolute;opacity:0;width:1px;height:1px}
 #msg{display:flex;gap:.6rem;align-items:flex-start;color:var(--muted);font-size:.875rem;margin-top:.75rem}
-#msg .i{width:16px;height:1.5em}
+#msg .i{width:1rem;height:1.5em}
 #msg:empty{display:none}
 #msg.err{color:#e58a6f}
 
@@ -91,25 +91,25 @@ input[type=range]:focus-visible::-moz-range-thumb{box-shadow:var(--ring)}
 .file b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chips{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.75rem;color:var(--muted);font-size:.78rem}
 .chips span{display:inline-flex;align-items:center;gap:.3rem;padding:.1rem .5rem;border:1px solid var(--line);border-radius:1rem;background:var(--bg);white-space:nowrap}
-.chips .i{width:14px;height:14px}
+.chips .i{width:0.875rem;height:0.875rem}
 .gain{display:flex;align-items:center;gap:.9rem;margin-top:1rem;padding:.85rem;background:var(--bg);border:1px solid var(--line);border-radius:var(--r)}
 .gtxt{display:flex;align-items:baseline;gap:.15rem .75rem;flex-wrap:wrap;min-width:0}
-#gv{font-size:2.25rem;line-height:1.1;color:var(--amber)}
+#gv{font-size:clamp(2.25rem,1.9rem + 1.6vw,2.5rem);line-height:1.1;color:var(--amber)}
 #lim{color:var(--muted);font-size:.875rem}
 .tipbox{display:flex;gap:.6rem;align-items:flex-start;margin-top:1rem;padding:.7rem .85rem;font-size:.875rem;color:var(--amber);background:var(--tint);border:1px solid var(--tint-line);border-radius:var(--r)}
-.tipbox .i{width:18px;height:1.5em}
+.tipbox .i{width:1.125rem;height:1.5em}
 .tipbox:has(#tip:empty),#tip:empty{display:none}
 
 /* measurements */
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-th{color:var(--muted);font-weight:400;font-size:.85rem;text-align:right;padding-bottom:.5rem}
-td{text-align:right;padding:.7rem 0;border-top:1px solid var(--line)}
-th:first-child,td:first-child{text-align:left;color:var(--muted)}
+th{color:var(--muted);font-weight:400;font-size:.85rem;text-align:end;padding-bottom:.5rem}
+td{text-align:end;padding:.7rem 0;border-top:1px solid var(--line)}
+th:first-child,td:first-child{text-align:start;color:var(--muted)}
 td.r{color:var(--teal);font-weight:600}
 td.na{color:var(--muted)}
-th:not(:first-child),td:not(:first-child){padding-left:.75rem;padding-right:.75rem}
-th:last-child,td:last-child{padding-right:0}
-th:nth-child(n+3),td:nth-child(n+3){border-left:1px solid var(--line)}
+th:not(:first-child),td:not(:first-child){padding-inline:.75rem}
+th:last-child,td:last-child{padding-inline-end:0}
+th:nth-child(n+3),td:nth-child(n+3){border-inline-start:1px solid var(--line)}
 
 /* output */
 .toggle{display:flex;justify-content:space-between;align-items:center;gap:1rem;min-height:3.25rem;padding:.4rem .85rem;margin-bottom:1rem;background:var(--bg);cursor:pointer}
@@ -122,10 +122,11 @@ input[type=checkbox]:checked::after{transform:translateX(1.1rem);background:#1a1
 .btn:hover{filter:brightness(1.08)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 input:disabled{opacity:.5;cursor:not-allowed}
+.hint{color:var(--muted);font-size:.8rem;text-align:center;margin-top:.6rem}
 .btn.alt{background:transparent;color:var(--amber);margin-top:.5rem}
 .btn.alt:hover{background:rgba(224,164,88,.1);filter:none}
 
-#plot{width:100%;height:9.5rem;display:block;margin-bottom:.75rem;border-radius:var(--r);background:var(--bg);border:1px solid var(--line)}
+#plot{width:100%;height:clamp(9.5rem,3rem + 18vw,12rem);display:block;margin-bottom:.75rem;border-radius:var(--r);background:var(--bg);border:1px solid var(--line)}
 .key{display:flex;gap:.4rem 1rem;flex-wrap:wrap;color:var(--muted);font-size:.8rem}
 .key i{display:inline-block;width:.8rem;height:.2rem;margin-right:.4rem;vertical-align:middle;border-radius:1px}
 audio{width:100%;height:var(--h);margin-top:.75rem;color-scheme:dark}
@@ -134,21 +135,19 @@ audio{width:100%;height:var(--h);margin-top:.75rem;color-scheme:dark}
 .empty{display:none;flex-direction:column;align-items:center;gap:.4rem;text-align:center;padding:3rem 1.5rem;border-style:dashed}
 .empty .ic{margin-bottom:.4rem}
 .empty b{font-weight:600}
-.empty p{color:var(--muted);font-size:.9rem;max-width:26rem}
+.empty p{color:var(--muted);font-size:.9rem;max-width:40ch}
 [hidden]{display:none!important}
 
 /* roomier cards */
 @media (min-width:30rem){
   .card{padding:1.25rem}
-  #gv{font-size:2.5rem}
 }
 /* tablets: the preset tiles fit four across */
 @media (min-width:40rem){
   main{padding-left:max(1.5rem,env(safe-area-inset-left));padding-right:max(1.5rem,env(safe-area-inset-right))}
-  h1{font-size:1.9rem}
   header{gap:1rem;margin-bottom:2rem}
   header .ic{width:3.25rem;height:3.25rem}
-  header .ic .i{width:26px;height:26px}
+  header .ic .i{width:1.625rem;height:1.625rem}
   .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
 /* desktops and landscape tablets: controls on the left, results on the right */
@@ -156,7 +155,6 @@ audio{width:100%;height:var(--h);margin-top:.75rem;color-scheme:dark}
   .layout{grid-template-columns:minmax(0,26rem) minmax(0,1fr);gap:1.25rem}
   .col,#out{gap:1.25rem}
   .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  #plot{height:12rem}
   #out[hidden]+.empty{display:flex}
 }
 /* phones: each measurement becomes its own block instead of a cramped four-column table */
@@ -164,15 +162,15 @@ audio{width:100%;height:var(--h);margin-top:.75rem;color-scheme:dark}
   thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   tbody tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:.8rem 0;border-top:1px solid var(--line)}
   tbody tr:first-child{border-top:0;padding-top:0}
-  tbody td{border:0!important;padding:0!important;text-align:left}
+  tbody td{border:0!important;padding:0!important;text-align:start}
   td:first-child{grid-column:1/-1;margin-bottom:.4rem}
   td[data-l]::before{content:attr(data-l);display:block;color:var(--muted);font-weight:400;font-size:.75rem}
 }
 /* phones: upload zone as a compact row so it takes less height */
 @media (max-width:39.99rem){
-  #drop{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:1rem;row-gap:0;align-items:center;text-align:left;padding:1rem}
+  #drop{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:1rem;row-gap:0;align-items:center;text-align:start;padding:1rem}
   #drop .ic{grid-row:1/3;margin:0;width:3rem;height:3rem}
-  #drop .ic .i{width:24px;height:24px}
+  #drop .ic .i{width:1.5rem;height:1.5rem}
   #drop b{align-self:end}
   #drop small{align-self:start}
 }
@@ -281,7 +279,8 @@ audio{width:100%;height:var(--h);margin-top:.75rem;color-scheme:dark}
       <h2><svg class="i"><use href="#i-sliders"/></svg>Output</h2>
       <label id="nbl" class="toggle"><span class="lab"><svg class="i"><use href="#i-volume-1"/></svg>Don't make quiet tracks louder</span><input id="noboost" type="checkbox"></label>
       <button id="go" class="btn" type="button"><svg class="i"><use href="#i-zap"/></svg><span>Normalize</span></button>
-      <a id="dl" class="btn alt" hidden><svg class="i"><use href="#i-download"/></svg><span>Download WAV</span></a>
+      <a id="dl" class="btn" hidden><svg class="i"><use href="#i-download"/></svg><span>Download WAV</span></a>
+      <p id="again" class="hint" hidden>Change the target above to normalize again.</p>
       <audio id="pv" controls hidden aria-label="Preview of the normalized track"></audio>
     </section>
   </div>
@@ -382,19 +381,33 @@ const TP = new Float64Array([
   -0.0083007812500, 0.0148925781250, -0.0266113281250, 0.0476074218750, -0.1022949218750, 0.9721679687500, 0.1373291015625, -0.0594482421875, 0.0332031250000, -0.0196533203125, 0.0109863281250, 0.0017089843750]);
 // The published taps sum to 0.97-0.99 per phase, which reads up to 0.25 dB low; scale each phase to unity DC gain
 for (let b = 0; b < 48; b += 12) { let g = 0; for (let j = 0; j < 12; j++) g += TP[b + j]; for (let j = 0; j < 12; j++) TP[b + j] /= g; }
+// Largest sum of |taps| over the four phases: no interpolated value can exceed SMAX x the largest sample in its 12-sample window
+const SMAX = Math.max(...[0, 12, 24, 36].map(b => { let t = 0; for (let j = 0; j < 12; j++) t += Math.abs(TP[b + j]); return t; }));
 const T0 = TP.subarray(0, 12), T1 = TP.subarray(12, 24), T2 = TP.subarray(24, 36), T3 = TP.subarray(36, 48);
 // keep=true: per-sample array. Otherwise just the overall peak, with no N-sized allocation.
 // Each tap is loaded once and feeds all four phases; the sums are accumulated in the same order as before.
 function peaks(chs, keep) {
   const N = chs[0].length, pk = keep ? new Float32Array(N) : null;
-  let top = 0;
-  for (const c of chs) for (let i = 0; i < N; i++) {
+  let top = 0, thr = 0, mk = null;
+  if (!keep) {
+    // Exact shortcut: a window whose samples are all <= sample peak / SMAX cannot hold the true peak, so it is not filtered
+    for (const c of chs) for (let i = 0; i < N; i++) { const v = Math.abs(c[i]); if (v > top) top = v; }
+    thr = top / SMAX; mk = S.mk || (S.mk = new Uint8Array(N));
+  }
+  for (const c of chs) {
+    if (mk) {
+      mk.fill(0);
+      for (let p = 0; p < N; p++) if (Math.abs(c[p]) > thr) for (let i = p > 6 ? p - 6 : 0, e = p + 5 < N ? p + 5 : N - 1; i <= e; i++) mk[i] = 1;
+    }
+    for (let i = 0; i < N; i++) {
+    if (mk && !mk[i]) continue;
     let m = Math.abs(c[i]), a = 0, b = 0, d = 0, f = 0;
     if (i >= 5 && i + 6 < N) for (let j = 0, p = i + 6; j < 12; j++, p--) { const x = c[p]; a += T0[j] * x; b += T1[j] * x; d += T2[j] * x; f += T3[j] * x; }
     else for (let j = 0, p = i + 6; j < 12; j++, p--) { const x = p >= 0 && p < N ? c[p] : 0; a += T0[j] * x; b += T1[j] * x; d += T2[j] * x; f += T3[j] * x; }
     if (a < 0) a = -a; if (b < 0) b = -b; if (d < 0) d = -d; if (f < 0) f = -f;
     if (a > m) m = a; if (b > m) m = b; if (d > m) m = d; if (f > m) m = f;
     if (keep) { if (m > pk[i]) pk[i] = m; } else if (m > top) top = m;
+    }
   }
   return keep ? pk : Math.fround(top);
 }
@@ -458,10 +471,10 @@ function run(o) {
   const cap = Math.min(G * 4, o.noBoost ? 1 : Infinity);
   let ceil = 10 ** (o.tp / 20), res, tp, g;
   const TOL = 0.001; // dB. The true peak must land within this of the ceiling and never above it.
-  for (let pass = 1; pass <= 8; pass++) {
+  for (let pass = 1; pass <= 12; pass++) {
     g = limiterGain(pk, G, ceil, fs);
     if (g) {
-      postMessage({ type: 'status', text: `Limiting, pass ${pass} of up to 8...` });
+      postMessage({ type: 'status', text: `Limiting, pass ${pass} of up to 12...` });
       apply(G, g);
       res = loudness(out, fs);
       tp = db(peaks(out));
@@ -474,7 +487,7 @@ function run(o) {
     // Over the ceiling: pull the limiter ceiling down. While limiting, also pull it up when the peak lands
     // below -1.5, so the true peak sits on the ceiling rather than somewhere under it.
     if (d > TOL || (g && d < -TOL)) ceil *= 10 ** (-d / 20);
-    else if (g && Math.abs(o.lufs - res.lufs) > 0.05 && G < cap) G = Math.min(G * 10 ** ((o.lufs - res.lufs) / 20), cap);
+    else if (g && Math.abs(o.lufs - res.lufs) > 0.01 && G < cap) G = Math.min(G * 10 ** ((o.lufs - res.lufs) / 20), cap);
     else break;
   }
   if (!g && tp > o.tp) apply(G, null); // otherwise the WAV is written straight from the source
@@ -488,7 +501,7 @@ function run(o) {
   }
   let reduction = 0;
   if (g) { let m = 1; for (let i = 0; i < N; i++) if (g[i] < m) m = g[i]; reduction = -db(m); }
-  S.g = S.gm = S.dq = null;
+  S.g = S.gm = S.dq = S.mk = null;
   postMessage({ type: 'status', text: 'Encoding WAV...' });
   const buf = out ? wav(out, fs, 1) : wav(chs, fs, G);
   return { type: 'done', job: o.job, buf, lufs: res.lufs, lra: res.lra, tp, reduction, trim, curve: ds(res.curve) };
@@ -630,8 +643,8 @@ function render() {
   $('#pv').hidden = !res;
   if (!res && dlUrl) freeResult(); // preset, ceiling or bit depth changed: drop the old WAV now
   const locked = !!res;
-  $('#go').disabled = busy || locked;
-  $('#go span').textContent = locked ? 'Change a setting to normalize again' : 'Normalize';
+  $('#go').disabled = busy || locked; $('#go').hidden = locked; $('#again').hidden = !locked;
+  $('#go span').textContent = busy ? 'Normalizing...' : 'Normalize';
   $('#noboost').disabled = busy || locked;
   if (!src) return;
   const t = target(), boost = !$('#noboost').checked;
@@ -663,6 +676,10 @@ function render() {
   }));
 }
 
+const reveal = (el, block) => {
+  if (matchMedia('(min-width:56rem)').matches) return;
+  el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion:reduce)').matches ? 'auto' : 'smooth', block });
+};
 async function decode(data, rate) {
   let ctx;
   try { ctx = new AudioContext(rate ? { sampleRate: rate } : undefined); } catch { ctx = new AudioContext(); }
@@ -730,7 +747,7 @@ const onWorkerMessage = ({ data: d }) => {
     $('#dt').textContent = src.name;
     $('#ds').textContent = 'Tap to choose another file';
     $('#out').hidden = false;
-    msg(''); render();
+    msg(''); render(); reveal($('#out'), 'start');
     return;
   }
   busy = false; $('#go').disabled = false;
@@ -740,7 +757,7 @@ const onWorkerMessage = ({ data: d }) => {
   a.href = dlUrl; $('#pv').src = dlUrl;
   a.download = `${src.name.replace(/\.[^.]+$/, '')}_${t.lufs}LUFS.wav`;
   const { buf, ...rest } = d; res = rest; // the WAV lives in the blob only; don't keep a second copy
-  render();
+  render(); reveal($('#dl').closest('section'), 'center');
   const parts = [];
   if (!$('#nbl').hidden && $('#noboost').checked) parts.push(`Left at ${n1(d.lufs)} LUFS: the track is already quieter than the target.`);
   else if (t.lufs - d.lufs > 0.3) parts.push(`Reached ${n1(d.lufs)} LUFS. Holding the ceiling at this target needs more limiting than is safe.`);
